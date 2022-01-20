@@ -1,5 +1,10 @@
 #include <Arduino.h>
+#include<stdarg.h>
 #include "tusb.h"
+
+#define DEBUG_MAX_LINES 16
+#define DEBUG_MAX_LEN 128
+static char outbuf[32][DEBUG_MAX_LEN];
 
 void usbh_hw_init();
 
@@ -7,28 +12,49 @@ void setup()
 {
     Serial1.begin(256000);
     usbh_hw_init();
+
+#if (CFG_TUSB_MCU == OPT_MCU_RP2040)
+    //More left overs from Arduino backend
+    irq_handler_t _handler = irq_get_exclusive_handler(USBCTRL_IRQ);
+    irq_remove_handler(USBCTRL_IRQ, _handler);
+#endif
     tusb_init();
 }
 
 void loop()
 {
     tuh_task();
+    for (int i = 0; i < DEBUG_MAX_LINES; i++)
+    {
+        if (outbuf[i][0] != 0)
+        {
+            Serial1.print(outbuf[i]);
+            Serial1.flush();
+            outbuf[i][0] = 0;
+        }
+    }
 }
 
+
 #ifdef CFG_TUSB_DEBUG_PRINTF
-char outbuf[256];
 extern "C" int CFG_TUSB_DEBUG_PRINTF(const char *format, ...)
 {
+    //This can be in IRQ context. Store message and output to user later
     va_list args;
     va_start(args, format);
-    vsnprintf(outbuf, sizeof(outbuf), format, args);
-    Serial1.print(outbuf);
-    //Serial1.printf(format, args);
-    Serial1.flush();
+    for (int i = 0; i < DEBUG_MAX_LINES; i++)
+    {
+        if (outbuf[i][0] == 0)
+        {
+            vsnprintf(outbuf[i], DEBUG_MAX_LEN, format, args);
+            break;
+        }
+    }
     return 1;
 }
 #endif
 
+#if (CFG_TUSB_MCU==OPT_MCU_MIMXRT10XX)
 void USB_OTG2_IRQHandler(void)
 {
     tuh_int_handler(1);
@@ -91,6 +117,12 @@ void usbh_hw_init()
 #endif
     attachInterruptVector(IRQ_USB2, USB_OTG2_IRQHandler);
 }
+#else
+void usbh_hw_init()
+{
+
+}
+#endif
 
 void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t instance, uint8_t const *report, uint16_t len)
 {
