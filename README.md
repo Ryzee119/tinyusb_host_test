@@ -1,4 +1,4 @@
-TinyUSB host dev on Teensy41 and Pico
+TinyUSB host dev on Teensy41
 
 Build with [VSCode](https://code.visualstudio.com/) and the [PlatformIO](https://platformio.org/) plugin.
 
