@@ -10,14 +10,8 @@ void usbh_hw_init();
 
 void setup()
 {
-    Serial1.begin(256000);
+    Serial1.begin(115200);
     usbh_hw_init();
-
-#if (CFG_TUSB_MCU == OPT_MCU_RP2040)
-    //More left overs from Arduino backend
-    irq_handler_t _handler = irq_get_exclusive_handler(USBCTRL_IRQ);
-    irq_remove_handler(USBCTRL_IRQ, _handler);
-#endif
     tusb_init();
 }
 
@@ -54,7 +48,6 @@ extern "C" int CFG_TUSB_DEBUG_PRINTF(const char *format, ...)
 }
 #endif
 
-#if (CFG_TUSB_MCU==OPT_MCU_MIMXRT10XX)
 void USB_OTG2_IRQHandler(void)
 {
     tuh_int_handler(1);
@@ -117,12 +110,6 @@ void usbh_hw_init()
 #endif
     attachInterruptVector(IRQ_USB2, USB_OTG2_IRQHandler);
 }
-#else
-void usbh_hw_init()
-{
-
-}
-#endif
 
 void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t instance, uint8_t const *report, uint16_t len)
 {
